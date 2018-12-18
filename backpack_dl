@@ -1,0 +1,75 @@
+#!/usr/bin/python
+
+# Downloads resource from a course page at www.usebackpack.com
+# Usage: backpack_dl sem_code course_code [optional: course_name]
+
+from bs4 import BeautifulSoup
+import requests,os,sys,re
+BP = 'https://www.usebackpack.com'
+
+def load_file(url,name,seq):
+	print(name,'...',end='')
+	sys.stdout.flush()
+	r = s.get(url)
+	if 'Content-Disposition' not in r.headers: return
+	ext = re.findall('filename=.+\.(.+)"',r.headers['Content-Disposition'])[0]
+	filename = str(seq) + '-' + name + '.' + ext
+	with open(filename, 'wb') as f:
+		for chunk in r.iter_content(chunk_size=1024):
+			if chunk: f.write(chunk)
+	print('done')
+
+def chdir(path):
+	if not os.path.exists(path): os.makedirs(path)
+	os.chdir(path)
+
+def get_session():
+	s = requests.session()
+	token = BeautifulSoup(s.get(BP+'/welcome').text,'html.parser').find('input',attrs={'name':'authenticity_token'})['value']
+	data = { 'commit':'Sign+in', 'authenticity_token':token, 'user[email]':'email', 'user[password]':'pass' }
+	s.post(BP+'/users/sign_in',data=data)
+	return s
+
+def load_course(sem, course_code, course_name):
+	print('loading.. ', course_name)
+	html = s.get(BP+'/iiitd/'+ sem + '/' + course_code + '/resources').text
+	soup = BeautifulSoup(html,'html.parser')
+	all_divs = soup.find_all('div','box')
+	if len(all_divs)==0:
+		print('No resource found!')
+		return
+	
+	# sorting files by types
+	sorted_files={}
+	folder = 'unknown'
+	for d in all_divs:
+		if d.find_previous('h3') is not None:
+			folder = d.find_previous('h3').string
+		if folder not in sorted_files:
+			sorted_files[folder] = []
+		sorted_files[folder].append(d)
+	
+	# download into folders
+	chdir(course_name)
+	for folder in sorted_files:
+		files = sorted_files[folder][::-1] # chronological order
+		chdir(folder)
+		seq=0
+		for f in files:
+			seq+=1
+			if f.h4 is not None and f.a is not None:
+				fname = f.h4.text.strip()
+				url = f.a['href']
+				if url[0] == '/': url = BP + url
+				load_file(url,fname,seq)
+		os.chdir('..')
+	os.chdir('..')
+
+if __name__=='__main__':
+	if len(sys.argv)!=4 and len(sys.argv)!=3:
+		print('Usage: backpack_dl sem_code course_code [optional: course_name]'), exit(0)
+	course_code = sys.argv[2]
+	course_name = sys.argv[3] if len(sys.argv)==4 else sys.argv[2]
+	sem = sys.argv[1]
+	s = get_session()
+	load_course(sem, course_code, course_name)
