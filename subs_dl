@@ -1,0 +1,34 @@
+#!/bin/python
+# downloads subtitles for given media file from thesubdb.com
+
+import sys, os, hashlib
+from urllib import request
+
+def get_hash(name):
+    readsize = 64 * 1024
+    with open(name, 'rb') as f:
+        size = os.path.getsize(name)
+        data = f.read(readsize)
+        f.seek(-readsize, os.SEEK_END)
+        data += f.read(readsize)
+    return hashlib.md5(data).hexdigest()
+
+def get_subs(file_path):
+    root, _ = os.path.splitext(file_path)
+    file_name = root + '.srt'
+    lang_code = 'en' # change here to suit your need
+    header = {'User-Agent': 'SubDB/1.0 (subs_dl/0.1; http://github.com/gps08/scripts/subs_dl)'}
+    url = "http://api.thesubdb.com/?action=download&hash=" + get_hash(file_path) + "&language=" + lang_code
+    try:
+        req = request.Request(url, None, header)
+        response = request.urlopen(req).read()
+        with open(file_name, 'wb') as srt_file:
+            srt_file.write(response)
+            print('Subtitles saved')
+    except:
+        print('No Subtitles Found')
+
+if __name__ == '__main__':
+    for vid in sys.argv[1:]:
+        print(vid,end='... ')
+        get_subs(vid)

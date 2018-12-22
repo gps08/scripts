@@ -1,0 +1,11 @@
+#!/bin/bash
+
+choice=$(echo -e "shutdown\nlogout\nreboot\nsuspend\nhibernate" | dmenu)
+
+case "$choice" in
+  shutdown) systemctl poweroff -i & ;;
+  logout) i3-msg exit & ;;
+  reboot) systemctl reboot & ;;
+  suspend) i3lock -c "000000" && systemctl suspend & ;;
+  hibernate) i3lock -c "000000" && systemctl hibernate & ;;
+esac
