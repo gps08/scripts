@@ -2,7 +2,7 @@
 script to download course page resuorces from usebackpack.com
 
 # subs_dl 
-downloads subtitles for a given list of video files from subsdl.com
+downloads subtitles for a given list of video files from thesubdb.com
 
 # extract
 general purpose archive extraction script
