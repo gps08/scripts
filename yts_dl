@@ -1,0 +1,35 @@
+#!/bin/python
+# downloads subtitles for given media file from thesubdb.com
+
+from bs4 import BeautifulSoup
+import requests, sys, os, re, zipfile
+
+def get_ytsdl(movie_name, file_name):
+    s = requests.session()
+    url = "https://yts-subtitles.com/search?q=" + movie_name.replace(' ','+')
+    url = BeautifulSoup(s.get(url).text, 'html.parser').find('h1', 'uk-article-title').find('a')['href']
+    url = BeautifulSoup(s.get(url).text, 'html.parser').find('span','subtitle-list-language',text='English').parent.next_sibling.find('a')['href']
+    url = BeautifulSoup(s.get(url).text, 'html.parser').find('a','uk-button uk-button-success uk-button-large')['href']
+    url = BeautifulSoup(s.get(url).text, 'html.parser').find('a','uk-margin-bottom-remove')['href']
+    r = s.get(url)
+    ext = re.findall('filename=.+\.(.+)"',r.headers['Content-Disposition'])[0]
+    with open('temp.' + ext, 'wb') as f:
+        for chunk in r.iter_content(chunk_size=1024):
+            if chunk: f.write(chunk)
+    if ext=='zip':
+        zip_ref = zipfile.ZipFile('temp.zip', 'r')
+        zip_ref.extractall('.')
+        os.rename(zip_ref.filelist[0].filename, file_name)
+        for zipInfo in zip_ref.filelist[1:]:
+            os.remove(zipInfo.filename)
+        zip_ref.close()
+    os.remove('temp.zip')    
+    print('done')
+
+if __name__ == "__main__":
+    if len(sys.argv)!=2: 
+        print('Usage yify_dl <file_name>')
+        exit(0)
+    movie_name = input('Enter movie name: ')
+    file_name = os.path.basename(sys.argv[1]) + '.srt'
+    get_ytsdl(movie_name, file_name)
