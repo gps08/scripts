@@ -9,6 +9,8 @@ def get_ytsdl(movie_name, file_name):
     url = "https://yts-subtitles.com/search?q=" + movie_name.replace(' ','+')
     movies = BeautifulSoup(s.get(url).text, 'html.parser').find_all('h1', 'uk-article-title')
 
+    if len(movies)==0: print('No subtitles found'); exit(0)
+
     for i in range(len(movies)): print(i,movies[i].text)
     url = movies[int(input('Enter movie number to download: '))].find('a')['href']
 
