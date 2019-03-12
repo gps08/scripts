@@ -11,8 +11,10 @@ def get_ytsdl(movie_name, file_name):
 
     if len(movies)==0: print('No subtitles found'); exit(0)
 
-    for i in range(len(movies)): print(i,movies[i].text)
-    url = movies[int(input('Enter movie number to download: '))].find('a')['href']
+    if len(movies)>1:
+        for i in range(len(movies)): print(i,movies[i].text)
+        url = movies[int(input('Enter movie number to download: '))].find('a')['href']
+    else: url = movies[0].find('a')['href']
 
     url = BeautifulSoup(s.get(url).text, 'html.parser').find('span','subtitle-list-language',text='English').parent.next_sibling.find('a')['href']
     url = BeautifulSoup(s.get(url).text, 'html.parser').find('a','uk-button uk-button-success uk-button-large')['href']
@@ -29,7 +31,7 @@ def get_ytsdl(movie_name, file_name):
         for zipInfo in zip_ref.filelist[1:]:
             os.remove(zipInfo.filename)
         zip_ref.close()
-    os.remove('temp.zip')
+        os.remove('temp.zip')
     print('done')
 
 if __name__ == "__main__":
