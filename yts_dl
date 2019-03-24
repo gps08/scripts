@@ -1,27 +1,32 @@
 #!/bin/python
-# downloads subtitles for given media file from thesubdb.com
+# downloads subtitles for given media file from yifysubtitles.com 
 
 from bs4 import BeautifulSoup
 import requests, sys, os, re, zipfile
 
 def get_ytsdl(movie_name, file_name):
     s = requests.session()
-    url = "https://yts-subtitles.com/search?q=" + movie_name.replace(' ','+')
-    movies = BeautifulSoup(s.get(url).text, 'html.parser').find_all('h1', 'uk-article-title')
-
+    root = "https://yifysubtitles.com"
+    url = root + "/search?q=" + movie_name.replace(' ','+')
+    movies = BeautifulSoup(s.get(url).text, 'html.parser').find_all('div','media-body')
+    
     if len(movies)==0: print('No subtitles found'); exit(0)
+    print('Movie found looking for subtitles..')
 
     if len(movies)>1:
-        for i in range(len(movies)): print(i,movies[i].text)
-        url = movies[int(input('Enter movie number to download: '))].find('a')['href']
-    else: url = movies[0].find('a')['href']
+        for i in range(len(movies)): print(i,movies[i].find('h3','media-heading').text)
+        url = root + movies[int(input('Enter movie number to download: '))].find('a')['href']
+    else: url = root + movies[0].find('a')['href']
 
-    url = BeautifulSoup(s.get(url).text, 'html.parser').find('span','subtitle-list-language',text='English').parent.next_sibling.find('a')['href']
-    url = BeautifulSoup(s.get(url).text, 'html.parser').find('a','uk-button uk-button-success uk-button-large')['href']
-    url = BeautifulSoup(s.get(url).text, 'html.parser').find('a','uk-margin-bottom-remove')['href']
+    eng_srt = BeautifulSoup(s.get(url).text, 'html.parser').find('span','sub-lang',text='English')
+    if eng_srt is None: print('No subtitles found'); exit(0)
+
+    url = root + eng_srt.parent.next_sibling.find('a')['href']
+    url = BeautifulSoup(s.get(url).text, 'html.parser').find('a','btn-icon download-subtitle')['href']
+
     r = s.get(url)
-    ext = re.findall('filename=.+\.(.+)"',r.headers['Content-Disposition'])[0]
-    with open('temp.' + ext, 'wb') as f:
+    ext = url.split('.')[-1]
+    with open('temp.'+ext, 'wb') as f:
         for chunk in r.iter_content(chunk_size=1024):
             if chunk: f.write(chunk)
     if ext=='zip':
@@ -31,7 +36,7 @@ def get_ytsdl(movie_name, file_name):
         for zipInfo in zip_ref.filelist[1:]:
             os.remove(zipInfo.filename)
         zip_ref.close()
-        os.remove('temp.zip')
+    os.remove('temp.zip')
     print('done')
 
 if __name__ == "__main__":
