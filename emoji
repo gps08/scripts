@@ -1,8 +1,0 @@
-#!/bin/bash
-# find and copy emojis using dmenu
-
-emoji=$(cat ~/.scripts/.emoji | dmenu -i | sed "s/ .*//" | tr -d '\n')
-[ "$emoji" != "" ] || exit
-
-echo "$emoji" | xclip -sel clip
-notify-send "$emoji copied"
