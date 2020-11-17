@@ -1,8 +1,9 @@
-#!/bin/python
-# downloads subtitles for given media file from thesubdb.com
+#!/usr/bin/python
+# downloads subtitles for given media file from thesubdb.com or yts
 
-import sys, os, hashlib
 from urllib import request
+from bs4 import BeautifulSoup
+import requests, sys, os, re, zipfile, hashlib, time
 
 def get_hash(name):
     readsize = 64 * 1024
@@ -13,7 +14,7 @@ def get_hash(name):
         data += f.read(readsize)
     return hashlib.md5(data).hexdigest()
 
-def get_subs(file_path):
+def get_subsdl(file_path):
     root, _ = os.path.splitext(file_path)
     file_name = root + '.srt'
     lang_code = 'en' # change here to suit your need
@@ -24,11 +25,62 @@ def get_subs(file_path):
         response = request.urlopen(req).read()
         with open(file_name, 'wb') as srt_file:
             srt_file.write(response)
-            print('Subtitles saved')
-    except:
-        print('No Subtitles Found')
+            return True
+    except: return False
+
+def get_ytsdl(movie_name, file_path):
+    if movie_name=='': return False
+    root, _ = os.path.splitext(file_path)
+    file_name = root + '.srt'
+    s = requests.session()
+    is_org = False
+    base_url = "https://yifysubtitles.com"
+    if s.get(base_url).status_code != 200:
+        base_url = "https://yifysubtitles.org"
+        is_org = True
+
+    url = base_url + "/search?q=" + movie_name.replace(' ','+')
+    movies = BeautifulSoup(s.get(url).text, 'html.parser').find_all('div','media-body')
+    
+    if len(movies)==0: print('Movie not found'); return False
+    print('Movie found looking for subtitles..')
+
+    if len(movies)>1:
+        for i in range(len(movies)): print(i,movies[i].find('h3','media-heading').text)
+        url = base_url + movies[int(input('Enter movie number to download: '))].find('a')['href']
+    else: url = base_url + movies[0].find('a')['href']
+
+    eng_srt = BeautifulSoup(s.get(url).text, 'html.parser').find('span','sub-lang',text='English')
+    if eng_srt is None: return False
+
+    url = base_url + eng_srt.parent.next_sibling.find('a')['href']
+    if is_org: url = base_url + eng_srt.parent.parent.find('a')['href']
+
+    url = BeautifulSoup(s.get(url).text, 'html.parser').find('a','btn-icon download-subtitle')['href']
+    if is_org: url = base_url + url
+
+    r = s.get(url)
+    ext = url.split('.')[-1]
+    with open('temp.'+ext, 'wb') as f:
+        for chunk in r.iter_content(chunk_size=1024):
+            if chunk: f.write(chunk)
+    if ext=='zip':
+        zip_ref = zipfile.ZipFile('temp.zip', 'r')
+        zip_ref.extractall('.')
+        os.rename(zip_ref.filelist[0].filename, file_name)
+        for zipInfo in zip_ref.filelist[1:]:
+            os.remove(zipInfo.filename)
+        zip_ref.close()
+    os.remove('temp.zip')
+    return True
 
 if __name__ == '__main__':
-    for vid in sys.argv[1:]:
-        print(vid,end='... ')
-        get_subs(vid)
+    if len(sys.argv)<2: print('Usage',sys.argv[0],'file_name'); exit(0)
+    if len(sys.argv)==2: 
+        print('Downloading subtitles for.. ', sys.argv[1])
+        if not get_ytsdl(input('Enter movie name: '), sys.argv[1]):
+            if not get_subsdl(sys.argv[1]): print('No subtitles found')
+    else:
+        for vid in sys.argv[1:]:
+            if not get_subsdl(vid): print(vid, '... not found')
+            else: print(vid, '... saved')
